@@ -1,0 +1,6 @@
+grant{
+    permission java.net.SocketPermission "*", "accept,connect,resolve";
+    permission java.net.NetPermission "getProxySelector";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.io.FilePermission "/usr/share/elasticsearch/data/config.properties", "read";
+};
