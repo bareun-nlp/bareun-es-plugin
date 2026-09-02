@@ -1,0 +1,38 @@
+# 태그를 밀면 대상 버전마다 zip 을 만들어 GitHub Releases 에 올린다.
+#
+# 예전에는 사용자가 직접 빌드해야 했다(실제로 이슈 #1 "플러그인 빌드 오류 문의").
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - es: 8.19.21
+            java: '17'
+            profile: ''
+          - es: 9.5.2
+            java: '21'
+            profile: '-Pes9'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - run: mvn -B ${{ matrix.profile }} package
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: target/releases/*.zip
+          fail_on_unmatched_files: true

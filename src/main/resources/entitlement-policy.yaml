@@ -1,0 +1,6 @@
+# Elasticsearch 9 (entitlement 모델) 전용.
+#
+# 이 플러그인은 모듈이 아니므로 ALL-UNNAMED 아래에 적는다.
+# 필요한 것은 바른 서버로 나가는 연결 하나뿐이다.
+ALL-UNNAMED:
+  - outbound_network

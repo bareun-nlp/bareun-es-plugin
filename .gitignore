@@ -1,5 +1,7 @@
-config.txt
+target/
 *.class
-target/*
-http_ca.crt
-nohup.out
+.classpath
+.project
+.settings/
+.idea/
+*.iml
