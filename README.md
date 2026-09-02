@@ -33,11 +33,13 @@ RUN bin/elasticsearch-plugin install analysis-nori
 RUN bin/elasticsearch-plugin install --batch file:///usr/share/elasticsearch/data/elasticsearch-analysis-baikal-8.5.2.zip
 ```
 
-- make plugin file ( re-pack.sh은 zip 파일 버그를 수정하는 기능 )
+- make plugin file
 ```
-re-pack.sh
+mvn -B -DskipTests package
 docker build -t elasticsearch-with-baikal-nlp:8.5.2 .
 ```
+> 예전에는 `mvn package` 가 만든 zip 에 잘못된 항목이 섞여 Elasticsearch 가 설치를 거부했고,
+> `re-pack.sh` 로 다시 압축해야 했습니다. 그 원인을 없앴으므로 `re-pack.sh` 는 삭제했습니다.
 
 - 도커 등록
 ```
@@ -105,7 +107,7 @@ stoptags : E,IC,J,MAG,MAJ,MM,NA,NF,NV,SE,SF,SO,SP,SS,SW,VC,VX,XPN,XS
 # 동작가능한 예제
 - baikal_test 디폴트 값으로 생성
 ```
-curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test' \
+curl --location --request PUT 'localhost:9200/baikal_test' \
 --data-raw '{
     "settings": {
         "index": {
@@ -127,7 +129,7 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test' \
 
 - baikal_test 디폴트 값으로 변경
 ```
-curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test/_settings' \
+curl --location --request PUT 'localhost:9200/baikal_test/_settings' \
 --data-raw '{
     "index": {
         "analysis": {
@@ -147,7 +149,7 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test/_settings' \
 
 - baikal_test 옵션값으로 생성
 ```
-curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test' \
+curl --location --request PUT 'localhost:9200/baikal_test' \
 --data-raw '{
     "settings": {
         "index": {
@@ -164,7 +166,7 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test' \
                 "tokenizer": {
                     "baikal_nlp_tokenizer": {
                         "type": "baikal_tokenizer",
-                        "bareun_server_address": "gpu2.baikal.ai",
+                        "bareun_server_address": "nlp.bareun.ai",
                         "bareun_server_port": 5656
                     }
                 }
@@ -176,7 +178,7 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test' \
 
 - baikal_test 옵션값 변경
 ```
-curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test/_settings' \
+curl --location --request PUT 'localhost:9200/baikal_test/_settings' \
 --data-raw '{
     "index": {
         "analysis": {
@@ -192,7 +194,7 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test/_settings' \
             "tokenizer": {
                 "baikal_nlp_tokenizer": {
                     "type": "baikal_tokenizer",
-                    "bareun_server_address": "10.3.8.44",
+                    "bareun_server_address": "nlp.bareun.ai",
                     "bareun_server_port": 5656,
                     "stoptags" : ["E","IC","J","MAG","MAJ","MM","NA","NF","NV","SE","SF","SO","SP","SS","SW","VC","VX","XPN","XS"]
                 }
@@ -204,8 +206,8 @@ curl --location --request PUT 'gpu2.baikal.ai:9200/baikal_test/_settings' \
 
 - 설정 변경시 close, open 명령
 ```
-curl --location --request POST 'gpu2.baikal.ai:9200/baikal_test/_close'
-curl --location --request POST 'gpu2.baikal.ai:9200/baikal_test/_open'
+curl --location --request POST 'localhost:9200/baikal_test/_close'
+curl --location --request POST 'localhost:9200/baikal_test/_open'
 ```
 
 
