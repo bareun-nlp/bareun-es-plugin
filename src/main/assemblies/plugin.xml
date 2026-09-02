@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <assembly>
-    <id>elasticsearch-analysis-baikal-release</id>
+    <id>bareun-plugin-release</id>
     <formats>
         <format>zip</format>
     </formats>
@@ -11,21 +11,24 @@
             <outputDirectory></outputDirectory>
             <filtered>true</filtered>
         </file>
+        <!--
+          권한 선언은 entitlement-policy.yaml 하나뿐이다. Elasticsearch 8.18 부터
+          entitlement 가 SecurityManager 를 대체했고, 옛 plugin-security.policy 를
+          함께 담으면 "legacy Security Policy file" 경고가 뜬다. 지원 대상이 8.19 와
+          9.x 라 옛 파일은 필요 없다.
+        -->
         <file>
-            <source>${project.basedir}/src/main/resources/plugin-security.policy</source>
+            <source>${project.basedir}/src/main/resources/entitlement-policy.yaml</source>
             <outputDirectory></outputDirectory>
-            <filtered>true</filtered>
-        </file>
-        <file>
-            <source>${project.basedir}/src/main/resources/log4j.properties</source>
-            <outputDirectory></outputDirectory>
-            <filtered>true</filtered>
         </file>
     </files>
     <dependencySets>
         <dependencySet>
             <outputDirectory>/</outputDirectory>
             <unpack>false</unpack>
+            <!-- provided/test 는 담지 않는다. 담으면 ES 자신의 클래스와 충돌한다. -->
+            <useTransitiveDependencies>true</useTransitiveDependencies>
+            <scope>runtime</scope>
         </dependencySet>
     </dependencySets>
 </assembly>

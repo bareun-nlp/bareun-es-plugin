@@ -4,46 +4,70 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.elasticsearch</groupId>
-    <artifactId>elasticsearch-analysis-baikal</artifactId>
-    <version>8.5.2</version>
+    <groupId>ai.bareun</groupId>
+    <artifactId>elasticsearch-analysis-bareun</artifactId>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>elasticsearch-analysis-baikal</name>
+    <name>elasticsearch-analysis-bareun</name>
     <description>Elasticsearch analysis plugin for bareun Korean NLP</description>
+    <url>https://github.com/bareun-nlp/bareun-es-plugin</url>
+
+    <licenses>
+        <license>
+            <name>BSD 3-Clause</name>
+            <url>https://opensource.org/licenses/BSD-3-Clause</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
-        <java.version>1.9</java.version>
-        <elasticsearch.version>8.5.2</elasticsearch.version>
-        <lucene.version>8.4.0</lucene.version>
-        <org.slf4j.version>1.7.7</org.slf4j.version>
-        <maven.compiler.plugin.version>3.5.1</maven.compiler.plugin.version>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
-        <elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
+        <!--
+          Elasticsearch 는 플러그인 descriptor 의 elasticsearch.version 이 노드 버전과
+          정확히 같아야 로드한다. 그래서 하나의 산출물로 여러 ES 버전을 지원할 수 없고,
+          대상 버전마다 zip 을 따로 만든다. 아래 프로파일이 그 축이다.
+
+          산출물 이름에 대상 버전이 들어간다:
+          elasticsearch-analysis-bareun-1.0.0-es<ES버전>.zip
+
+              mvn package                       # 기본 대상(8.19.21)
+              mvn -Pes9 package                 # 9.5.2
+              mvn -Delasticsearch.version=9.4.6 package   # 임의 버전
+        -->
+        <elasticsearch.version>8.19.21</elasticsearch.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.target>17</maven.compiler.target>
+        <protobuf.version>3.25.5</protobuf.version>
+        <junit.version>5.11.3</junit.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>es9</id>
+            <properties>
+                <elasticsearch.version>9.5.2</elasticsearch.version>
+                <!-- ES 9 는 JDK 21 위에서 돈다. -->
+                <maven.compiler.release>21</maven.compiler.release>
+                <maven.compiler.target>21</maven.compiler.target>
+            </properties>
+        </profile>
+    </profiles>
+
     <dependencies>
+        <!--
+          런타임 의존은 protobuf-java 하나뿐이다.
+
+          옛 pom 은 gRPC(grpc-netty-shaded·guava·opencensus 등 20여 개)를 담았다.
+          Elasticsearch 자체가 Netty 를 쓰므로 플러그인이 또 하나의 Netty 를 들고
+          들어오는 것은 위험하다. Connect 의 단항 호출은 평범한 HTTP POST 라
+          HttpURLConnection 으로 충분해서(BareunConnect 참고) 전부 걷어냈다.
+        -->
         <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty-shaded</artifactId>
-            <version>1.21.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-            <version>1.21.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-stub</artifactId>
-            <version>1.21.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-core</artifactId>
-            <version>${lucene.version}</version>
-            <scope>provided</scope>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
         </dependency>
 
         <dependency>
@@ -52,120 +76,32 @@
             <version>${elasticsearch.version}</version>
             <scope>provided</scope>
         </dependency>
+        <!-- lucene-core 는 elasticsearch 가 이행 의존으로 끌어온다. 직접 선언하면
+             버전을 따로 관리해야 하고 ES 와 어긋날 위험만 생긴다. -->
 
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <version>${org.slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>${org.slf4j.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.11</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <!-- integration test suite -->
+        <!-- 없으면 surefire 가 JUnit 5 를 못 알아보고 JUnit 3 제공자를 골라
+             "junit/framework/TestCase" 로 죽는다. -->
         <dependency>
-            <groupId>com.carrotsearch.randomizedtesting</groupId>
-            <artifactId>randomizedtesting-runner</artifactId>
-            <version>2.3.2</version>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <version>1.11.3</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-            <version>1.3</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-all</artifactId>
-            <version>1.3</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-test-framework</artifactId>
-            <version>${lucene.version}</version>
-            <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <artifactId>junit4-ant</artifactId>
-                    <groupId>com.carrotsearch.randomizedtesting</groupId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.elasticsearch.test</groupId>
-            <artifactId>framework</artifactId>
-            <version>${elasticsearch.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy-all</artifactId>
-            <version>2.3.2</version>
-            <scope>test</scope>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>net.java.dev.jna</groupId>
-            <artifactId>jna</artifactId>
-            <version>4.1.0</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- log4j2 -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.7</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.7</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
-            <version>1.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <version>3.21.10</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>3.21.10</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.10</version>
-        </dependency>
-
-
     </dependencies>
+
 
     <build>
         <extensions>
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.6.2</version>
+                <version>1.7.1</version>
             </extension>
         </extensions>
         <plugins>
@@ -174,110 +110,59 @@
                 <artifactId>protobuf-maven-plugin</artifactId>
                 <version>0.6.1</version>
                 <configuration>
-                    <protocArtifact>com.google.protobuf:protoc:3.7.1:exe:${os.detected.classifier}</protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.21.0:exe:${os.detected.classifier}</pluginArtifact>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <!-- 서비스 스텁은 만들지 않는다. Connect 호출은 경로 문자열로
+                         직접 부르므로 메시지 클래스만 있으면 된다. -->
                 </configuration>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
-                        </goals>
+                        <goals><goal>compile</goal></goals>
                     </execution>
                 </executions>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <source>${maven.compiler.target}</source>
-                    <target>${maven.compiler.target}</target>
-                </configuration>
+                <version>3.13.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>2.1.2</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <dependencies>
+                    <!-- 제공자를 명시하지 않으면 surefire 가 JUnit 3 제공자를 골라
+                         "junit/framework/TestCase" 로 죽는다(실측). -->
+                    <dependency>
+                        <groupId>org.apache.maven.surefire</groupId>
+                        <artifactId>surefire-junit-platform</artifactId>
+                        <version>3.5.2</version>
+                    </dependency>
+                </dependencies>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
                 <configuration>
-                    <descriptors>
-                        <descriptor>${basedir}/src/main/assemblies/plugin.xml</descriptor>
-                    </descriptors>
-                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
                     <appendAssemblyId>false</appendAssemblyId>
-                    <archive>
-                        <manifest>
-                            <mainClass>fully.qualified.MainClass</mainClass>
-                        </manifest>
-                    </archive>
+                    <!-- 어느 ES 버전용인지 파일 이름만 보고 알 수 있어야 한다.
+                         descriptor 의 elasticsearch.version 이 노드와 다르면
+                         플러그인이 아예 로드되지 않기 때문이다. -->
+                    <finalName>${project.artifactId}-${project.version}-es${elasticsearch.version}</finalName>
+                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+                    <descriptors>
+                        <descriptor>${elasticsearch.assembly.descriptor}</descriptor>
+                    </descriptors>
                 </configuration>
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
+                        <goals><goal>single</goal></goals>
                     </execution>
                 </executions>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-release-plugin</artifactId>
-                        <version>2.1</version>
-                        <configuration>
-                            <autoVersionSubmodules>true</autoVersionSubmodules>
-                            <useReleaseProfile>false</useReleaseProfile>
-                            <releaseProfiles>release</releaseProfiles>
-                            <goals>deploy</goals>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.5.1</version>
-                        <configuration>
-                            <source>${maven.compiler.target}</source>
-                            <target>${maven.compiler.target}</target>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>2.2.1</version>
-                        <executions>
-                            <execution>
-                                <!-- builds source jars and attaches them to the project for publishing -->
-                                <id>esbase-java-sources</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

@@ -1,0 +1,25 @@
+# 플러그인을 설치한 Elasticsearch 한 대를 띄우는 예시.
+#
+# 먼저 이미지를 만든다(examples/docker/Dockerfile 주석 참고).
+# API 키는 컨테이너를 띄운 뒤 keystore 에 넣는다:
+#   docker compose exec elasticsearch \
+#     bash -c 'echo "koba-..." | bin/elasticsearch-keystore add -x -f bareun.api_key'
+#   docker compose restart elasticsearch
+services:
+  elasticsearch:
+    image: elasticsearch-bareun:8.19.21
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      # 바른 서버 주소. 같은 호스트에서 돌리면 host.docker.internal 이나 172.17.0.1.
+      - bareun.host=nlp.bareun.ai
+      - bareun.port=5656
+      - bareun.tls=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+volumes:
+  esdata:
