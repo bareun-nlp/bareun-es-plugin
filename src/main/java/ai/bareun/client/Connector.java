@@ -35,7 +35,7 @@ public class Connector {
     protected AnalyzeSyntaxResponse lastResponse;
 
     public final static int DEF_PORT = 5656;
-    public final static String DEF_ADDRESS = "nlp.bareun.ai"; // "10.3.8.44";
+    public final static String DEF_ADDRESS = "nlp.bareun.ai";
     public final static String DEF_APIKEY = "koba-YOUR-KEY";
 
     public Connector() {
