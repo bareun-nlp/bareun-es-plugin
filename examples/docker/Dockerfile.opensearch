@@ -1,0 +1,23 @@
+# 플러그인을 미리 설치한 OpenSearch 이미지.
+#
+# 빌드하기 전에 플러그인 zip 을 만들어 둔다:
+#   mvn -B -pl bareun-analysis-opensearch -am package            # 2.19.7 용
+#   mvn -B -pl bareun-analysis-opensearch -am -Pos3 package      # 3.9.0 용 (JDK 21 필요)
+#
+# 그다음 저장소 루트에서:
+#   docker build -f examples/docker/Dockerfile.opensearch \
+#     --build-arg OS_VERSION=2.19.7 -t opensearch-bareun:2.19.7 .
+ARG OS_VERSION=2.19.7
+FROM opensearchproject/opensearch:${OS_VERSION}
+ARG OS_VERSION
+ARG PLUGIN_VERSION=1.1.0
+
+COPY bareun-analysis-opensearch/target/releases/opensearch-analysis-bareun-${PLUGIN_VERSION}-os${OS_VERSION}.zip /tmp/plugin.zip
+
+RUN /usr/share/opensearch/bin/opensearch-plugin install --batch file:///tmp/plugin.zip \
+    && rm /tmp/plugin.zip
+
+# API 키는 이미지에 굽지 않는다. 컨테이너를 띄운 뒤 keystore 에 넣는다:
+#   docker exec -i <컨테이너> bin/opensearch-keystore add -x -f bareun.api_key <<< "koba-..."
+# 서버 주소는 환경변수로 준다:
+#   -e bareun.host=nlp.bareun.ai -e bareun.port=5656

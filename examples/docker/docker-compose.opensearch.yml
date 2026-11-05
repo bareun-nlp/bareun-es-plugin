@@ -1,0 +1,27 @@
+# 플러그인을 설치한 OpenSearch 한 대를 띄우는 예시.
+#
+# 먼저 이미지를 만든다(examples/docker/Dockerfile.opensearch 주석 참고).
+# API 키는 컨테이너를 띄운 뒤 keystore 에 넣는다:
+#   docker compose -f docker-compose.opensearch.yml exec opensearch \
+#     bash -c 'echo "koba-..." | bin/opensearch-keystore add -x -f bareun.api_key'
+#   docker compose -f docker-compose.opensearch.yml restart opensearch
+services:
+  opensearch:
+    image: opensearch-bareun:2.19.7
+    environment:
+      - discovery.type=single-node
+      # 시험용이다. 운영에서는 보안 플러그인을 켜고 관리자 비밀번호를 준다.
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      # 바른 서버 주소. 같은 호스트에서 돌리면 host.docker.internal 이나 172.17.0.1.
+      - bareun.host=nlp.bareun.ai
+      - bareun.port=5656
+      - bareun.tls=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - osdata:/usr/share/opensearch/data
+
+volumes:
+  osdata:

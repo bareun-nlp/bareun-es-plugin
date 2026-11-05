@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ai.bareun</groupId>
+        <artifactId>bareun-analysis-parent</artifactId>
+        <version>1.1.0</version>
+    </parent>
+
+    <artifactId>bareun-analysis-common</artifactId>
+    <name>bareun-analysis-common</name>
+    <description>바른 서버 호출과 Lucene 토크나이저. 제품(ES·OpenSearch)에 매이지 않는다.</description>
+
+    <dependencies>
+        <!--
+          런타임 의존은 protobuf-java 하나뿐이다. gRPC(netty 등 20여 개)는 쓰지 않는다.
+          Elasticsearch·OpenSearch 가 이미 Netty 를 들고 있어, 플러그인이 또 하나를
+          들여오는 것은 위험하다. Connect 의 단항 호출은 평범한 HTTP POST 라
+          HttpURLConnection 으로 충분하다(BareunConnect 참고).
+        -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <!-- 제품이 들고 있는 Lucene 을 쓰므로 provided 다. 플러그인 zip 에 담으면 충돌한다. -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <version>${lucene.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
+        <plugins>
+            <plugin>
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>0.6.1</version>
+                <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
+                    <!-- 서비스 스텁은 만들지 않는다. Connect 호출은 경로 문자열로
+                         직접 부르므로 메시지 클래스만 있으면 된다. -->
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals><goal>compile</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

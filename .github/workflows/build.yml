@@ -1,8 +1,8 @@
-# 대상 Elasticsearch 버전마다 빌드하고 단위 테스트를 돌린다.
+# 제품(Elasticsearch·OpenSearch)과 대상 버전마다 빌드하고, 단위 시험과 컨테이너 통합 시험을 돌린다.
 #
-# Elasticsearch 는 플러그인 descriptor 의 elasticsearch.version 이 노드 버전과
-# 정확히 같아야 로드하므로, 하나의 산출물로 여러 버전을 지원할 수 없다. 그래서
-# 대상 버전이 그대로 빌드 축이 된다.
+# 두 제품 모두 플러그인 descriptor 의 버전이 노드 버전과 정확히 같아야 로드하므로,
+# 하나의 산출물로 여러 버전을 지원할 수 없다. 대상 버전이 그대로 빌드 축이 된다.
+# 통합 시험은 실제 컨테이너에 zip 을 설치해 로드와 분석을 확인한다(바른 서버는 모의).
 name: build
 
 on:
@@ -17,13 +17,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - es: 8.19.21
+          - product: elasticsearch
+            module: bareun-analysis-elasticsearch
+            prefix: elasticsearch-analysis-bareun
+            tag: es
+            version: 8.19.21
             java: '17'
             profile: ''
-          - es: 9.5.2
+          - product: elasticsearch
+            module: bareun-analysis-elasticsearch
+            prefix: elasticsearch-analysis-bareun
+            tag: es
+            version: 9.5.2
             java: '21'
             profile: '-Pes9'
-    name: es ${{ matrix.es }}
+          - product: opensearch
+            module: bareun-analysis-opensearch
+            prefix: opensearch-analysis-bareun
+            tag: os
+            version: 2.19.7
+            java: '17'
+            profile: ''
+          - product: opensearch
+            module: bareun-analysis-opensearch
+            prefix: opensearch-analysis-bareun
+            tag: os
+            version: 3.9.0
+            java: '21'
+            profile: '-Pos3'
+    name: ${{ matrix.product }} ${{ matrix.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +55,15 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - run: mvn -B ${{ matrix.profile }} verify
+      - name: 빌드와 단위 시험
+        run: mvn -B -pl ${{ matrix.module }} -am ${{ matrix.profile }} verify
+
+      - name: 컨테이너 통합 시험
+        run: |
+          scripts/it.sh ${{ matrix.product }} ${{ matrix.version }} \
+            ${{ matrix.module }}/target/releases/${{ matrix.prefix }}-1.1.0-${{ matrix.tag }}${{ matrix.version }}.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: elasticsearch-analysis-bareun-es${{ matrix.es }}
-          path: target/releases/*.zip
+          name: ${{ matrix.prefix }}-${{ matrix.tag }}${{ matrix.version }}
+          path: ${{ matrix.module }}/target/releases/*.zip

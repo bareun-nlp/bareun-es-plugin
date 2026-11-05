@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ai.bareun</groupId>
-    <artifactId>elasticsearch-analysis-bareun</artifactId>
-    <version>1.0.0</version>
-    <packaging>jar</packaging>
-    <name>elasticsearch-analysis-bareun</name>
-    <description>Elasticsearch analysis plugin for bareun Korean NLP</description>
+    <artifactId>bareun-analysis-parent</artifactId>
+    <version>1.1.0</version>
+    <packaging>pom</packaging>
+    <name>bareun-analysis-parent</name>
+    <description>Elasticsearch and OpenSearch analysis plugins for bareun Korean NLP</description>
     <url>https://github.com/bareun-nlp/bareun-es-plugin</url>
 
     <licenses>
@@ -20,149 +20,108 @@
         </license>
     </licenses>
 
+    <!--
+      Elasticsearch 와 OpenSearch 는 플러그인 API 의 패키지(org.elasticsearch / org.opensearch)가
+      갈라져 있고, 둘 다 descriptor 의 버전이 노드 버전과 정확히 같아야 플러그인을 로드한다.
+      그래서 제품마다 모듈을 나누고, 각 모듈은 대상 버전마다 zip 을 따로 만든다.
+
+        bareun-analysis-common         바른 서버 호출·토크나이저·토큰 필터(제품 무관)
+        bareun-analysis-elasticsearch  Elasticsearch 플러그인 (8.19.x, 9.x)
+        bareun-analysis-opensearch     OpenSearch 플러그인 (2.x, 3.x)
+    -->
+    <modules>
+        <module>bareun-analysis-common</module>
+        <module>bareun-analysis-elasticsearch</module>
+        <module>bareun-analysis-opensearch</module>
+    </modules>
+
+    <profiles>
+        <!-- 실제 컨테이너를 띄우는 통합 시험. 도커가 필요해서 기본 빌드에서는 뺀다.
+             scripts/it.sh 로 돌린다. -->
+        <profile>
+            <id>it</id>
+            <modules>
+                <module>bareun-analysis-it</module>
+            </modules>
+        </profile>
+    </profiles>
+
     <properties>
-        <!--
-          Elasticsearch 는 플러그인 descriptor 의 elasticsearch.version 이 노드 버전과
-          정확히 같아야 로드한다. 그래서 하나의 산출물로 여러 ES 버전을 지원할 수 없고,
-          대상 버전마다 zip 을 따로 만든다. 아래 프로파일이 그 축이다.
-
-          산출물 이름에 대상 버전이 들어간다:
-          elasticsearch-analysis-bareun-1.0.0-es<ES버전>.zip
-
-              mvn package                       # 기본 대상(8.19.21)
-              mvn -Pes9 package                 # 9.5.2
-              mvn -Delasticsearch.version=9.4.6 package   # 임의 버전
-        -->
-        <elasticsearch.version>8.19.21</elasticsearch.version>
         <maven.compiler.release>17</maven.compiler.release>
         <maven.compiler.target>17</maven.compiler.target>
         <protobuf.version>3.25.5</protobuf.version>
         <junit.version>5.11.3</junit.version>
+        <!-- 공통 모듈을 컴파일할 때 쓰는 Lucene. 쓰는 API(Tokenizer·FilteringTokenFilter·속성)가
+             Lucene 9 와 10 에서 같아 이 한 벌로 ES 8·9 와 OpenSearch 2·3 에서 모두 돈다.
+             실행은 각 제품이 들고 있는 Lucene 으로 한다(통합 시험으로 확인). -->
+        <lucene.version>9.12.2</lucene.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
     </properties>
 
-    <profiles>
-        <profile>
-            <id>es9</id>
-            <properties>
-                <elasticsearch.version>9.5.2</elasticsearch.version>
-                <!-- ES 9 는 JDK 21 위에서 돈다. -->
-                <maven.compiler.release>21</maven.compiler.release>
-                <maven.compiler.target>21</maven.compiler.target>
-            </properties>
-        </profile>
-    </profiles>
-
-    <dependencies>
-        <!--
-          런타임 의존은 protobuf-java 하나뿐이다.
-
-          옛 pom 은 gRPC(grpc-netty-shaded·guava·opencensus 등 20여 개)를 담았다.
-          Elasticsearch 자체가 Netty 를 쓰므로 플러그인이 또 하나의 Netty 를 들고
-          들어오는 것은 위험하다. Connect 의 단항 호출은 평범한 HTTP POST 라
-          HttpURLConnection 으로 충분해서(BareunConnect 참고) 전부 걷어냈다.
-        -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <version>${elasticsearch.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <!-- lucene-core 는 elasticsearch 가 이행 의존으로 끌어온다. 직접 선언하면
-             버전을 따로 관리해야 하고 ES 와 어긋날 위험만 생긴다. -->
-
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <!-- 없으면 surefire 가 JUnit 5 를 못 알아보고 JUnit 3 제공자를 골라
-             "junit/framework/TestCase" 로 죽는다. -->
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-launcher</artifactId>
-            <version>1.11.3</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>ai.bareun</groupId>
+                <artifactId>bareun-analysis-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <!-- 없으면 surefire 가 JUnit 5 를 못 알아보고 JUnit 3 제공자를 골라
+                 "junit/framework/TestCase" 로 죽는다. -->
+            <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-launcher</artifactId>
+                <version>1.11.3</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>1.7.1</version>
-            </extension>
-        </extensions>
-        <plugins>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
-                <configuration>
-                    <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-                    <!-- 서비스 스텁은 만들지 않는다. Connect 호출은 경로 문자열로
-                         직접 부르므로 메시지 클래스만 있으면 된다. -->
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals><goal>compile</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
-                <dependencies>
-                    <!-- 제공자를 명시하지 않으면 surefire 가 JUnit 3 제공자를 골라
-                         "junit/framework/TestCase" 로 죽는다(실측). -->
-                    <dependency>
-                        <groupId>org.apache.maven.surefire</groupId>
-                        <artifactId>surefire-junit-platform</artifactId>
-                        <version>3.5.2</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
-                <configuration>
-                    <appendAssemblyId>false</appendAssemblyId>
-                    <!-- 어느 ES 버전용인지 파일 이름만 보고 알 수 있어야 한다.
-                         descriptor 의 elasticsearch.version 이 노드와 다르면
-                         플러그인이 아예 로드되지 않기 때문이다. -->
-                    <finalName>${project.artifactId}-${project.version}-es${elasticsearch.version}</finalName>
-                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
-                    <descriptors>
-                        <descriptor>${elasticsearch.assembly.descriptor}</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>single</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.2</version>
+                    <dependencies>
+                        <!-- 제공자를 명시하지 않으면 surefire 가 JUnit 3 제공자를 골라 죽는다. -->
+                        <dependency>
+                            <groupId>org.apache.maven.surefire</groupId>
+                            <artifactId>surefire-junit-platform</artifactId>
+                            <version>3.5.2</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.5.2</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.apache.maven.surefire</groupId>
+                            <artifactId>surefire-junit-platform</artifactId>
+                            <version>3.5.2</version>
+                        </dependency>
+                    </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.7.1</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
     </build>
 </project>
