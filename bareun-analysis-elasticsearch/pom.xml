@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>ai.bareun</groupId>
+        <artifactId>bareun-analysis-parent</artifactId>
+        <version>1.1.0</version>
+    </parent>
+
+    <artifactId>elasticsearch-analysis-bareun</artifactId>
+    <name>elasticsearch-analysis-bareun</name>
+    <description>Elasticsearch analysis plugin for bareun Korean NLP</description>
+
+    <properties>
+        <!--
+          Elasticsearch 는 플러그인 descriptor 의 elasticsearch.version 이 노드 버전과
+          정확히 같아야 로드한다. 그래서 하나의 산출물로 여러 ES 버전을 지원할 수 없고,
+          대상 버전마다 zip 을 따로 만든다. 아래 프로파일이 그 축이다.
+
+          산출물 이름에 대상 버전이 들어간다:
+          elasticsearch-analysis-bareun-1.1.0-es<ES버전>.zip
+
+              mvn -pl bareun-analysis-elasticsearch -am package            # 기본 대상(8.19.21)
+              mvn -pl bareun-analysis-elasticsearch -am -Pes9 package      # 9.5.2
+              mvn ... -Delasticsearch.version=9.4.6 package                # 임의 버전
+        -->
+        <elasticsearch.version>8.19.21</elasticsearch.version>
+        <elasticsearch.assembly.descriptor>${basedir}/src/main/assemblies/plugin.xml</elasticsearch.assembly.descriptor>
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>es9</id>
+            <properties>
+                <elasticsearch.version>9.5.2</elasticsearch.version>
+                <!-- ES 9 는 JDK 21 위에서 돈다. -->
+                <maven.compiler.release>21</maven.compiler.release>
+                <maven.compiler.target>21</maven.compiler.target>
+            </properties>
+        </profile>
+    </profiles>
+
+    <dependencies>
+        <dependency>
+            <groupId>ai.bareun</groupId>
+            <artifactId>bareun-analysis-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.elasticsearch</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>${elasticsearch.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- lucene-core 는 elasticsearch 가 이행 의존으로 끌어온다. 직접 선언하면
+             버전을 따로 관리해야 하고 ES 와 어긋날 위험만 생긴다. -->
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <!-- 어느 ES 버전용인지 파일 이름만 보고 알 수 있어야 한다. -->
+                    <finalName>${project.artifactId}-${project.version}-es${elasticsearch.version}</finalName>
+                    <outputDirectory>${project.build.directory}/releases/</outputDirectory>
+                    <descriptors>
+                        <descriptor>${elasticsearch.assembly.descriptor}</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>single</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

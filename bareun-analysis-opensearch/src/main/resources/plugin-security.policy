@@ -1,0 +1,8 @@
+// 바른 서버로 나가는 연결 하나만 허용한다.
+//
+// OpenSearch 2.x 는 SecurityManager, 3.x 는 자바 에이전트가 이 파일을 읽는다.
+// 플러그인 코드는 스레드를 만들지 않고(HttpURLConnection 은 호출 스레드에서 블로킹한다)
+// 파일도 읽지 않으므로 다른 권한은 필요 없다.
+grant {
+  permission java.net.SocketPermission "*", "connect,resolve";
+};

@@ -1,37 +1,54 @@
 # bareun-es-plugin
 
-바른(bareun) 한국어 형태소 분석기를 Elasticsearch 분석기로 쓰는 플러그인입니다.
+바른(bareun) 한국어 형태소 분석기를 Elasticsearch 와 OpenSearch 분석기로 쓰는 플러그인입니다.
 
-바른에 대해서는 [bareun.ai](https://bareun.ai) 를 보세요.
+바른에 대해서는 [bareun.ai](https://bareun.ai) 를 보세요. 서버 API 는 바른 3.4.0 에 맞춰져 있습니다.
 
 ## 지원 버전
 
-Elasticsearch 는 플러그인의 `elasticsearch.version` 이 노드 버전과 **정확히 같아야**
-로드합니다. 그래서 대상 버전마다 zip 이 따로 나옵니다.
+두 제품 모두 플러그인의 대상 버전이 노드 버전과 **정확히 같아야** 로드합니다. 그래서
+제품마다, 버전마다 zip 이 따로 나옵니다. 파일 이름에 제품과 버전이 들어 있습니다.
 
-| Elasticsearch | 산출물 | 빌드 |
-| --- | --- | --- |
-| 8.19.21 | `elasticsearch-analysis-bareun-1.0.0-es8.19.21.zip` | `mvn package` |
-| 9.5.2 | `elasticsearch-analysis-bareun-1.0.0-es9.5.2.zip` | `mvn -Pes9 package` |
+| 제품 | 대상 버전 | 산출물 | 빌드 | JDK |
+| --- | --- | --- | --- | --- |
+| Elasticsearch | 8.19.21 | `elasticsearch-analysis-bareun-1.1.0-es8.19.21.zip` | `-pl bareun-analysis-elasticsearch -am` | 17 |
+| Elasticsearch | 9.5.2 | `elasticsearch-analysis-bareun-1.1.0-es9.5.2.zip` | `-pl bareun-analysis-elasticsearch -am -Pes9` | 21 |
+| OpenSearch | 2.19.7 | `opensearch-analysis-bareun-1.1.0-os2.19.7.zip` | `-pl bareun-analysis-opensearch -am` | 17 |
+| OpenSearch | 3.9.0 | `opensearch-analysis-bareun-1.1.0-os3.9.0.zip` | `-pl bareun-analysis-opensearch -am -Pos3` | 21 |
 
-다른 버전이 필요하면 `mvn -Delasticsearch.version=9.4.6 package` 처럼 지정합니다.
-8.19 는 JDK 17, 9.x 는 JDK 21 이 필요합니다.
+위 네 버전은 실제 컨테이너에 설치해 로드와 분석까지 확인합니다(CI 통합 시험).
+다른 버전이 필요하면 `-Delasticsearch.version=9.4.6` 이나 `-Dopensearch.version=2.18.0`
+처럼 지정해 직접 빌드합니다. 이때는 그 버전에서 컴파일되는지 확인이 필요합니다.
+
+### 구성
+
+```
+bareun-analysis-common         바른 서버 호출·토크나이저·토큰 필터(제품 무관)
+bareun-analysis-elasticsearch  Elasticsearch 플러그인
+bareun-analysis-opensearch     OpenSearch 플러그인
+bareun-analysis-it             컨테이너 통합 시험(-Pit)
+```
 
 ## 설치
 
-[Releases](https://github.com/bareun-nlp/bareun-es-plugin/releases) 에서 노드 버전에
-맞는 zip 을 받아 설치합니다.
+[Releases](https://github.com/bareun-nlp/bareun-es-plugin/releases) 에서 제품과 노드
+버전에 맞는 zip 을 받아 설치합니다.
 
 ```bash
-bin/elasticsearch-plugin install file:///path/to/elasticsearch-analysis-bareun-1.0.0-es8.19.21.zip
+# Elasticsearch
+bin/elasticsearch-plugin install file:///path/to/elasticsearch-analysis-bareun-1.1.0-es8.19.21.zip
+
+# OpenSearch
+bin/opensearch-plugin install file:///path/to/opensearch-analysis-bareun-1.1.0-os2.19.7.zip
 ```
 
 ## 설정
 
-노드 단위 기본값은 `elasticsearch.yml` 에, API 키는 keystore 에 넣습니다.
+노드 단위 기본값은 `elasticsearch.yml`(OpenSearch 는 `opensearch.yml`)에, API 키는
+keystore 에 넣습니다. 설정 이름은 두 제품이 같습니다.
 
 ```yaml
-# elasticsearch.yml
+# elasticsearch.yml / opensearch.yml
 bareun.host: nlp.bareun.ai
 bareun.port: 5656
 bareun.tls: false
@@ -41,7 +58,7 @@ bareun.custom_dict_names: []
 ```
 
 ```bash
-bin/elasticsearch-keystore add bareun.api_key
+bin/elasticsearch-keystore add bareun.api_key     # OpenSearch: bin/opensearch-keystore
 ```
 
 설정을 바꾸면 노드를 다시 시작합니다.
@@ -50,7 +67,8 @@ bin/elasticsearch-keystore add bareun.api_key
 > 저장되기 때문입니다. keystore 만 받습니다.
 
 도커에서는 설정을 환경변수로 줄 수 있습니다(`-e bareun.host=...`). 키는 컨테이너를
-띄운 뒤 keystore 에 넣습니다. `examples/docker/` 에 예시가 있습니다.
+띄운 뒤 keystore 에 넣습니다. `examples/docker/` 에 Elasticsearch 와 OpenSearch 예시가
+있습니다.
 
 ## 쓰기
 
@@ -86,8 +104,9 @@ POST /my-index/_analyze
 | tokenizer | `bareun_tokenizer` | `baikal_tokenizer` |
 | token filter | `bareun_part_of_speech` | `baikal_token` |
 
-옛 이름도 그대로 동작합니다. 이미 만들어진 인덱스가 깨지지 않게 한동안 함께 둡니다.
-새 인덱스에는 `bareun_*` 를 쓰세요.
+옛 이름은 Elasticsearch 용에서만 동작합니다. 이미 만들어진 인덱스가 깨지지 않게 한동안
+함께 둡니다. 새 인덱스에는 `bareun_*` 를 쓰세요. OpenSearch 용은 새로 나온 플러그인이라
+옛 이름이 없고, 인덱스 설정은 두 제품 사이에서 그대로 옮길 수 있습니다.
 
 ## 토크나이저 옵션
 
@@ -169,21 +188,39 @@ api-key: koba-...
 ```
 
 그래서 `HttpURLConnection` 으로 붙습니다. `java.net.http.HttpClient` 는 셀렉터 스레드를
-스스로 만드는데 Elasticsearch 는 플러그인의 스레드 생성을 막으므로 쓸 수 없습니다.
+스스로 만드는데 Elasticsearch·OpenSearch 는 플러그인의 스레드 생성을 막으므로 쓸 수
+없습니다. 접속은 `AccessController.doPrivileged` 안에서 합니다. SecurityManager 를 쓰는
+OpenSearch 2.x 는 호출 스택에 Lucene·서버 코드가 섞여 있어, 이렇게 하지 않으면
+`plugin-security.policy` 로 권한을 줘도 접속이 막힙니다.
 
 오프셋은 UTF-16 으로 받습니다. Lucene 의 `OffsetAttribute` 도 UTF-16 문자 단위라
 변환 없이 그대로 씁니다. 하이라이팅 위치가 맞으려면 필요합니다.
 
-플러그인이 담는 의존은 `protobuf-java` 하나입니다.
+플러그인이 담는 의존은 `protobuf-java` 하나입니다. 다만 OpenSearch 는 코어의 `lib/` 에
+같은 jar 를 들고 있어(2.19 는 3.25.5, 3.9 는 3.25.8) zip 에 담으면 설치할 때 jar hell
+로 거부됩니다. 그래서 OpenSearch 용 zip 에는 `protobuf-java` 를 담지 않고 코어 것을 씁니다.
 
 ## 개발
 
 ```bash
-mvn -B verify              # 8.19.21 대상, 단위 테스트 포함
-mvn -B -Pes9 verify        # 9.5.2 대상 (JDK 21 필요)
+mvn -B verify                                                  # 전 모듈 단위 시험, 기본 대상(ES 8.19.21, OS 2.19.7)
+mvn -B -pl bareun-analysis-elasticsearch -am -Pes9 verify      # ES 9.5.2 (JDK 21 필요)
+mvn -B -pl bareun-analysis-opensearch -am -Pos3 verify         # OS 3.9.0 (JDK 21 필요)
 ```
 
-실제 Elasticsearch 에 올려 확인하려면 `examples/docker/` 를 보세요.
+실제 컨테이너에 설치해 로드와 분석을 확인하려면(도커 필요):
+
+```bash
+scripts/it.sh elasticsearch 8.19.21
+scripts/it.sh opensearch 2.19.7
+```
+
+바른 서버는 시험 안의 모의 서버로 갈음합니다. API 키가 필요하면 환경변수
+`BAREUN_TEST_API_KEY` 로만 줍니다(없으면 모의 서버 전용 더미 값). 9.x·3.x 용 zip 은
+JDK 21 로 만들어야 하므로, JDK 21 이 없으면 zip 을 먼저 만들고 경로를 세 번째 인자로
+줍니다. 자세한 것은 `scripts/it.sh` 머리말을 보세요.
+
+실제 바른 서버와 함께 띄워 보려면 `examples/docker/` 를 보세요.
 
 ## 라이선스
 

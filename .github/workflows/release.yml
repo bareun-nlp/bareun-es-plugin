@@ -1,4 +1,4 @@
-# 태그를 밀면 대상 버전마다 zip 을 만들어 GitHub Releases 에 올린다.
+# 태그를 밀면 제품·대상 버전마다 zip 을 만들어 GitHub Releases 에 올린다.
 #
 # 예전에는 사용자가 직접 빌드해야 했다(실제로 이슈 #1 "플러그인 빌드 오류 문의").
 name: release
@@ -15,12 +15,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - es: 8.19.21
+          - module: bareun-analysis-elasticsearch
             java: '17'
             profile: ''
-          - es: 9.5.2
+          - module: bareun-analysis-elasticsearch
             java: '21'
             profile: '-Pes9'
+          - module: bareun-analysis-opensearch
+            java: '17'
+            profile: ''
+          - module: bareun-analysis-opensearch
+            java: '21'
+            profile: '-Pos3'
     steps:
       - uses: actions/checkout@v4
 
@@ -30,9 +36,9 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - run: mvn -B ${{ matrix.profile }} package
+      - run: mvn -B -pl ${{ matrix.module }} -am ${{ matrix.profile }} package
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: target/releases/*.zip
+          files: ${{ matrix.module }}/target/releases/*.zip
           fail_on_unmatched_files: true
